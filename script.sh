@@ -1,15 +1,30 @@
 #!/bin/bash
 
-cat /etc/hosts | while read -r ip host rest
-do
-    [ -z "$ip" ] && continue
-    [[ "$ip" =~ ^# ]] && continue
-    [ -z "$host" ] && continue
+verifica_ip() {
+    local host="$1"
+    local ip_asteptat="$2"
+    local dns_server="$3"
 
-    ns_ip=$(nslookup -type=A "$host" 8.8.8.8 2>/dev/null | \
-            awk '/^Address: / {print $2}' | tail -n 1)
-    # Dacă nslookup a returnat un IP diferit
-    if  [ -n "$ns_ip" ]&&[ "$ns_ip" != "$ip" ]; then
-        echo "Bogus IP for $host in /etc/hosts! "
+    rezolvat_ip=$(
+        nslookup "$host" "$dns_server" 2>/dev/null |
+        awk '/^Address: / {print $2}' |
+        tail -n 1
+    )
+
+    if [ "$rezolvat_ip" = "$ip_asteptat" ]; then
+        echo "OK: $host -> $ip_asteptat"
+        return 0
+    else
+        echo "EROARE: $host rezolvat la $rezolvat_ip, asteptat $ip_asteptat"
+        return 1
     fi
-done
+}
+
+if [ $# -ne 3 ]; then
+    echo "Utilizare: $0 <host> <ip> <server_dns>"
+    exit 1
+fi
+
+verifica_ip "$1" "$2" "$3"
+exit $?
+
